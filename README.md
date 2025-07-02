@@ -1,0 +1,2 @@
+# Predicting-Malpractice-Premiums-Analyzing-the-Impact-of-Hospital-Costs-and-Other-Predictors
+This report investigates the prediction of malpractice costs in hospitals and examines the factors that influence these costs. Using a variety of hospital-level data, including both cost-related and non-costrelated variables, the study aims to identify the most significant predictors of malpractice premiums per inpatient day.
