@@ -1,0 +1,745 @@
+---
+title: "fp - EDA"
+author: "Ismat"
+date: "2024-12-04"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(GGally)
+library(pheatmap)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(glmnet)
+library(tidyselect)
+library(caret)
+```
+
+# Data 
+
+```{r}
+# Load the dataset
+h_data <- read.csv("C:/Users/Ismat/OneDrive/Desktop/fall24/Stat consulting/Final Project/2021_USA_HOSPITAL_DATA.csv")
+colnames(h_data)
+str(h_data)
+```
+
+# EDA techniques to explore the relationship between the categorical variables
+
+```{r,warning=FALSE}
+# Change the class of the variable from integer to character
+h_data$overall_hospital_rating_star_rating <- as.character(h_data$overall_hospital_rating_star_rating)
+
+
+plot1 = ggplot(h_data, aes(x = teaching_status, y = malpractice_premiums_per_inpatient_day)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(title = "Mal Prem by Teaching Status", x = "Teaching Status", y = "Malpractice Premiums")
+
+plot2 = ggplot(h_data, aes(x = urban_rural, y = malpractice_premiums_per_inpatient_day)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Mal Prem by Urban/Rural", x = "Urban/Rural", y = "Malpractice Premiums")
+
+plot3 = ggplot(h_data, aes(x = bed_size_simple, y = malpractice_premiums_per_inpatient_day)) +
+  geom_boxplot(fill = "lightyellow") +
+  labs(title = "Mal Prem by bed size", x = "Bed size", y = "Malpractice Premiums")
+
+plot4 = ggplot(h_data, aes(x = ownership_type_simple, y = malpractice_premiums_per_inpatient_day)) +
+  geom_boxplot(fill = "yellow") +
+  labs(title = "Mal Prem by ownership type", x = "Ownership type", y = "Malpractice Premiums")
+
+plot5 = ggplot(h_data, aes(x = overall_hospital_rating_star_rating, y = malpractice_premiums_per_inpatient_day)) +
+  geom_boxplot(fill = "green") +
+  labs(title = "Mal Prem by hospital rating", x = "hospital rating", y = "Malpractice Premiums")
+grid.arrange(plot1, plot2, plot3, plot4, plot5, ncol = 3, nrow = 2)
+
+
+```
+
+```{r}
+# Change the class of the variable from integer to character
+h_data$overall_hospital_rating_star_rating <- as.character(h_data$overall_hospital_rating_star_rating)
+
+p1 = h_data %>%
+  group_by(bed_size_simple) %>%
+  summarise(mean_premiums = mean(malpractice_premiums_per_inpatient_day, na.rm = TRUE)) %>%
+  ggplot(aes(x = bed_size_simple, y = mean_premiums)) +
+  geom_bar(stat = "identity", fill = "coral") +
+  labs(title = "Malpractice by Bed Size", x = "Bed Size", y = "Mean Malpractice Premiums")
+p2 = h_data %>%
+  group_by(overall_hospital_rating_star_rating) %>%
+  summarise(mean_premiums = mean(malpractice_premiums_per_inpatient_day, na.rm = TRUE)) %>%
+  ggplot(aes(x = overall_hospital_rating_star_rating, y = mean_premiums)) +
+  geom_bar(stat = "identity", fill = "lightyellow") +
+  labs(title = "Malpractice by star rating", x = "star rating", y = "Mean Malpractice Premiums")
+p3 = h_data %>%
+  group_by(ownership_type_simple) %>%
+  summarise(mean_premiums = mean(malpractice_premiums_per_inpatient_day, na.rm = TRUE)) %>%
+  ggplot(aes(x = ownership_type_simple, y = mean_premiums)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  labs(title = "Malpractice by ownership type", x = "ownership type", y = "Mean Malpractice Premiums")
+p4 =  h_data %>%
+  group_by(teaching_status) %>%
+  summarise(mean_premiums = mean(malpractice_premiums_per_inpatient_day, na.rm = TRUE)) %>%
+  ggplot(aes(x = teaching_status, y = mean_premiums)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Malpractice by teaching", x = "teaching Status", y = "Mean Malpractice Premiums")
+p5 =  h_data %>%
+  group_by(urban_rural) %>%
+  summarise(mean_premiums = mean(malpractice_premiums_per_inpatient_day, na.rm = TRUE)) %>%
+  ggplot(aes(x = urban_rural, y = mean_premiums)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Malpractice by urban-rural", x = "urban-rural", y = "Mean Malpractice Premiums")
+grid.arrange(p1, p2, p3, p4, p5, ncol = 3, nrow = 2)
+
+```
+
+```{r,warning=FALSE}
+# Ensure required libraries are loaded
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# Reshape data to long format using pivot_longer
+h_data_long <- h_data %>%
+  pivot_longer(cols = c("bed_size_simple", "overall_hospital_rating_star_rating", 
+                        "ownership_type_simple", "teaching_status", "urban_rural"),
+               names_to = "Variable",
+               values_to = "Category")
+
+# Create a bar plot with facet_wrap
+facet_plot <- ggplot(h_data_long, aes(x = Category, y = malpractice_premiums_per_inpatient_day)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "lightblue") +  # Use mean for each category
+  facet_wrap(~ Variable, scales = "free_x") +                      # Facet by the categorical variable
+  labs(title = "Malpractice Premiums by Different Categories",
+       x = "Category",
+       y = "Mean Malpractice Premiums") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+# Display the plot
+print(facet_plot)
+```
+
+#  correlation between the response and all potential variables
+
+```{r}
+
+# correlation between the response and all potential variables
+vars_with_potential <- h_data %>%
+  select(malpractice_premiums_per_inpatient_day,cost_of_care_per_inpatient_day,charity_care_burden,bad_debt_burden,salary_cost_per_inpatient_day,alos,occupancy_rate,private_room_percentage,RN_percent,LPN_percent,naor_percent,ma_percent,nursing_hours_per_inpatient_day,special_care_day_rate,SDI_score,veteran,medicaid_caseload,disproportionate_percentage,
+cms_caseload,percent_of_service_area_under_public,
+percent_of_service_area_under_private,hospital_wide_readmission_rate,heart_failure_readmission_rate,acute_myocardial_infarction_readmission_rate,copd_readmission_rate,hip_knee_replacement_readmission_rate,pneumonia_readmission_rate,clabsi_rate,cauti_rate,ssi_colon_rate,
+ssi_hyster_rate,mrsa_rate,cdi_rate,PSI_03,PSI_04,PSI_06,PSI_08,PSI_09,PSI_10,PSI_11,PSI_12)
+# Compute the correlation matrix
+cor_matrix <- cor(vars_with_potential, use = "complete.obs")
+
+
+# Plot the heatmap
+pheatmap(cor_matrix, 
+         display_numbers = TRUE,  # Show correlation values in cells
+         color = colorRampPalette(c("red", "white", "blue"))(100),  # Color scale
+         main = "Correlation Heatmap of Continuous Variables with Response Variable",fontsize = ,cellwidth = 15,cellheight = 8)
+
+
+```
+
+# To explore the correlation between all readmission variable
+
+```{r}
+# Select only readmission variables
+continuous_read_vars <- h_data %>%
+  select(malpractice_premiums_per_inpatient_day,hospital_wide_readmission_rate,
+         heart_failure_readmission_rate, acute_myocardial_infarction_readmission_rate,
+         copd_readmission_rate, hip_knee_replacement_readmission_rate,
+         pneumonia_readmission_rate)
+
+# Compute the correlation matrix
+cor_matrix <- cor(continuous_read_vars, use = "complete.obs")
+
+# Plot the heatmap
+pheatmap(cor_matrix, 
+         display_numbers = TRUE,  # Show correlation values in cells
+         color = colorRampPalette(c("red", "white", "blue"))(100),  # Color scale
+         main = "Correlation Heatmap of Continuous Variables with Response Variable",fontsize = 10,cellwidth = 25,cellheight = 8)
+
+```
+# correlation between the variables with PSI
+```{r}
+
+# correlation between the variables with PSI
+vars_with_psi <- h_data %>%
+  select(clabsi_rate,cauti_rate,ssi_colon_rate,
+ssi_hyster_rate,mrsa_rate,cdi_rate,
+PSI_03,PSI_04,PSI_06,PSI_08,PSI_09,PSI_10,PSI_11,
+PSI_12,PSI_13,PSI_14,PSI_15,PSI_90,malpractice_premiums_per_inpatient_day)
+# Compute the correlation matrix
+cor_matrix <- cor(vars_with_psi, use = "complete.obs")
+
+
+
+# Plot the heatmap
+pheatmap(cor_matrix, 
+         display_numbers = TRUE,  # Show correlation values in cells
+         color = colorRampPalette(c("red", "white", "blue"))(100),  # Color scale
+         main = "Correlation Heatmap of Continuous Variables with Response Variable",fontsize = 7,cellwidth = 20,cellheight = 5)
+
+
+```
+
+```{r}
+# correlation between the variables with sdi score related variables
+vars_with_other <- h_data %>%
+  select(malpractice_premiums_per_inpatient_day,
+SDI_score,
+at_least_high_school,
+under_100_FPL,
+renting,
+crowded,
+no_computer_internet_access,
+not_proficient_english_adult,
+unemployment,
+non_employment,
+single_parent_family,
+no_vehicle_households,
+long_commute,
+veteran,
+medicaid_caseload,
+disproportionate_percentage,
+cms_caseload,
+percent_of_service_area_under_public,
+percent_of_service_area_under_private,
+
+)
+# Compute the correlation matrix
+cor_matrix <- cor(vars_with_other, use = "complete.obs")
+
+
+# Save the plot as a PNG file
+#png("correlation_heatmap.png", width = 800, height = 600)  # Specify dimensions and filename
+
+# Plot the heatmap
+pheatmap(cor_matrix, 
+         display_numbers = TRUE,  # Show correlation values in cells
+         color = colorRampPalette(c("red", "white", "blue"))(100),  # Color scale
+         main = "Correlation Heatmap of Continuous Variables with Response Variable",fontsize = 7,cellwidth = 16,cellheight = 8)
+
+# Close the device to save the file
+#dev.off()
+```
+
+```{r}
+# correlation between the variables with sdi score related variables
+vars_with_other <- h_data %>%
+  select(malpractice_premiums_per_inpatient_day,
+charity_care_burden,
+bad_debt_burden,
+salary_cost_per_inpatient_day,
+malpractice_premiums_per_inpatient_day,
+med_records_library_per_inpatient_day,
+mean_drg_weighting,
+alos,
+occupancy_rate,
+private_room_percentage,
+semi_private_room_percentage,
+RN_percent,
+LPN_percent,
+naor_percent,
+ma_percent,
+nursing_hours_per_inpatient_day,
+special_care_day_rate
+
+)
+# Compute the correlation matrix
+cor_matrix <- cor(vars_with_other, use = "complete.obs")
+                  
+# Save the plot as a PNG file
+#png("correlation_heatmap.png", width = 800, height = 600)  # Specify dimensions and filename
+
+# Plot the heatmap
+pheatmap(cor_matrix, 
+         display_numbers = TRUE,  # Show correlation values in cells
+         color = colorRampPalette(c("red", "white", "blue"))(100),  # Color scale
+         main = "Correlation Heatmap of Continuous Variables with Response Variable",fontsize = 7,cellwidth = 16,cellheight = 8)
+
+# Close the device to save the file
+#dev.off()
+
+```
+
+```{r}
+# correlation between the variables with sdi score related variables
+vars_with_cost <- h_data %>%
+  select(malpractice_premiums_per_inpatient_day,
+charity_care_burden,
+bad_debt_burden,
+salary_cost_per_inpatient_day,
+occupancy_rate,
+special_care_day_rate,
+med_records_library_per_inpatient_day
+)
+# Compute the correlation matrix
+cor_matrix <- cor(vars_with_cost, use = "complete.obs")
+                  
+# Save the plot as a PNG file
+#png("correlation_heatmap.png", width = 800, height = 600)  # Specify dimensions and filename
+
+# Plot the heatmap
+pheatmap(cor_matrix, 
+         display_numbers = TRUE,  # Show correlation values in cells
+         color = colorRampPalette(c("red", "white", "blue"))(100),  # Color scale
+         main = "Correlation Heatmap of Continuous Variables with Response Variable",fontsize = 7,cellwidth = 16,cellheight = 8)
+
+# Close the device to save the file
+#dev.off()
+
+```
+# (IMp)Last correlation matrix with most significant variables after analyzing other correlation matrix
+
+```{r}
+# correlation between the response and most significant variables 
+vars_significant <- h_data %>%
+  select(SDI_score,charity_care_burden,salary_cost_per_inpatient_day,cost_of_care_per_inpatient_day,occupancy_rate,malpractice_premiums_per_inpatient_day,alos,med_records_library_per_inpatient_day,RN_percent,naor_percent,ma_percent,nursing_hours_per_inpatient_day,veteran,long_commute,no_vehicle_households,medicaid_caseload,
+disproportionate_percentage,cms_caseload,percent_of_service_area_under_public,percent_of_service_area_under_private,PSI_08, PSI_09, PSI_10, PSI_11, PSI_12 )
+# Compute the correlation matrix
+cor_matrix <- cor(vars_significant, use = "complete.obs")
+
+# Save the plot as a PNG file
+#png("correlation_heatmap.png", width = 800, height = 600)  # Specify dimensions and filename
+
+# Plot the heatmap
+pheatmap(cor_matrix, 
+         display_numbers = TRUE,  # Show correlation values in cells
+         color = colorRampPalette(c("red", "white", "blue"))(100),  # Color scale
+         main = "Correlation Heatmap of Continuous Variables with Response Variable",fontsize = 7,cellwidth = 16,cellheight = 8)
+
+# Close the device to save the file
+#dev.off()
+```
+
+
+
+
+# response analysis
+
+```{r}
+summary(h_data$malpractice_premiums_per_inpatient_day)
+#Distribution Plot: Plot a histogram or density plot to visualize the distribution of malpractice_premiums_per_inpatient_day. This will help in identifying whether the distribution is skewed, normal, or has outliers.
+
+ggplot(h_data, aes(x = malpractice_premiums_per_inpatient_day)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Malpractice Premiums per Inpatient Day")
+
+ggplot(h_data, aes(y = malpractice_premiums_per_inpatient_day)) +
+  geom_boxplot(fill = "skyblue", color = "black") +
+  labs(title = "Boxplot of Malpractice Premiums per Inpatient Day",
+       y = "Malpractice Premiums per Inpatient Day") +
+  theme_minimal()
+
+# Save the plot
+ggsave("malpractice_boxplot.png", width = 8, height = 6)
+
+
+```
+
+
+
+
+```{r,warning=FALSE}
+# Reshape data to long format using tidyr
+library(ggplot2)
+library(tidyr)
+
+# Gather predictors into a long format
+h_data_long <- h_data %>%
+  pivot_longer(cols = c("cost_of_care_per_inpatient_day", "salary_cost_per_inpatient_day", 
+                        "med_records_library_per_inpatient_day", "special_care_day_rate", 
+                        "charity_care_burden", "bad_debt_burden"),
+               names_to = "Predictor",
+               values_to = "Value")
+
+# Create scatter plot with facet_wrap
+facet_plot <- ggplot(h_data_long, aes(x = Value, y = malpractice_premiums_per_inpatient_day)) +
+  geom_point(alpha = 0.6, color = "blue") +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +  # Add trendline
+  facet_wrap(~ Predictor, scales = "free_x") +            # Facet by predictor
+  labs(title = "Relationships Between Predictors and Malpractice Premiums",
+       x = "Predictor Value",
+       y = "Malpractice Premiums per Inpatient Day") +
+  theme_minimal()
+
+# Display the plot
+print(facet_plot)
+
+```
+
+
+
+# Descriptive statistics
+```{r, warning=FALSE}
+# Potential variables
+selected_vars <- h_data %>%
+  select(malpractice_premiums_per_inpatient_day,cost_of_care_per_inpatient_day,charity_care_burden,bad_debt_burden,salary_cost_per_inpatient_day,alos,occupancy_rate,private_room_percentage,RN_percent,LPN_percent,naor_percent,ma_percent,nursing_hours_per_inpatient_day,special_care_day_rate,SDI_score,veteran,medicaid_caseload,disproportionate_percentage,
+cms_caseload,percent_of_service_area_under_public,
+percent_of_service_area_under_private,hospital_wide_readmission_rate,heart_failure_readmission_rate,acute_myocardial_infarction_readmission_rate,copd_readmission_rate,hip_knee_replacement_readmission_rate,pneumonia_readmission_rate,clabsi_rate,cauti_rate,ssi_colon_rate,
+ssi_hyster_rate,mrsa_rate,cdi_rate,PSI_03,PSI_04,PSI_06,PSI_08,PSI_09,PSI_10,PSI_11,PSI_12)
+
+# Calculate descriptive statistics
+descriptive_stats <- selected_vars %>%
+  summarise(
+    Min = sapply(selected_vars, min, na.rm = TRUE),
+    Q1 = sapply(selected_vars, quantile, 0.25, na.rm = TRUE),
+    Median = sapply(selected_vars, median, na.rm = TRUE),
+    Mean = sapply(selected_vars, mean, na.rm = TRUE),
+    Q3 = sapply(selected_vars, quantile, 0.75, na.rm = TRUE),
+    Max = sapply(selected_vars, max, na.rm = TRUE),
+    SD = sapply(selected_vars, sd, na.rm = TRUE)
+  ) %>%
+  
+  as.data.frame() %>%
+  `rownames<-`(c( "malpractice_premiums_per_inpatient_day","cost_of_care_per_inpatient_day","charity_care_burden","bad_debt_burden","salary_cost_per_inpatient_day","alos","occupancy_rate","private_room_percentage","RN_percent","LPN_percent","naor_percent","ma_percent","nursing_hours_per_inpatient_day","special_care_day_rate","SDI_score","veteran","Medicaid_Caseload","disproportionate_percentage","cms_caseload","percent_of_service_area_under_public","percent_of_service_area_under_private","hospital_wide_readmission_rate","heart_failure_readmission_rate","acute_myocardial_infarction_readmission_rate","copd_readmission_rate","hip_knee_replacement_readmission_rate","pneumonia_readmission_rate","clabsi_rate","cauti_rate","ssi_colon_rate","ssi_hyster_rate","mrsa_rate","cdi_rate","PSI_03","PSI_04","PSI_06","PSI_08","PSI_09","PSI_10","PSI_11","PSI_12"))
+
+# Format and display the table
+descriptive_stats %>%
+  kbl(caption = "Descriptive Statistics for Selected Variables", digits = 2) %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+# Save as LaTeX table
+descriptive_stats %>%
+  kbl(format = "latex", caption = "Descriptive Statistics for Selected Variables", digits = 2) %>%
+  save_kable("descriptive_stats.tex")
+# Save descriptive statistics as a CSV file
+#write.csv(descriptive_stats, "descriptive_stats.csv", row.names = TRUE)
+
+
+```
+
+
+
+
+# Lasso model
+
+```{r}
+
+# Select numeric columns
+data_numeric <- h_data %>%
+  select_if(is.numeric)
+
+# Remove rows with missing values
+data_numeric <- na.omit(data_numeric)
+
+# Prepare the data for Lasso regression
+# Set 'malpractice_premiums_per_inpatient_day' as the response variable (y) and the rest as predictors (X)
+y <- data_numeric$malpractice_premiums_per_inpatient_day
+X <- data_numeric %>% select(-malpractice_premiums_per_inpatient_day)
+
+# Fit the Lasso model
+lasso_model <- cv.glmnet(as.matrix(X), y, alpha = 1)
+
+# Get the coefficients from the Lasso model
+lasso_coefficients <- coef(lasso_model, s = "lambda.min")
+
+# Print the coefficients
+print(lasso_coefficients)
+
+# Identify which variables are selected by Lasso (non-zero coefficients)
+selected_variables <- rownames(lasso_coefficients)[lasso_coefficients[,1] != 0]
+selected_variables
+```
+
+
+
+
+# missing values
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+
+# Calculate missing values for each variable
+missing_values <- h_data %>%
+  summarise_all(~sum(is.na(.))) %>%
+  pivot_longer(cols = everything(), 
+               names_to = "Variable", 
+               values_to = "Missing Values")
+
+# View the missing values table
+missing_values
+
+```
+
+# 1. Prepare the Data:
+
+```{r}
+# Clean the Data
+# List of variables selected by the Lasso model
+selected_variables <- c("bad_debt_burden" ,"salary_cost_per_inpatient_day" ,"alos", "private_room_percentage", "semi_private_room_percentage",  "LPN_percent" ,"ma_percent","crowded", "unemployment","no_vehicle_households","long_commute","medicaid_caseload", "percent_of_service_area_under_public", "mrsa_rate","PSI_08" ,"PSI_09",  "PSI_10", "PSI_12", "hospital_wide_readmission_rate","pneumonia_readmission_rate","malpractice_premiums_per_inpatient_day")        
+
+# Select only the relevant columns from your data
+data_selected <- h_data %>%select(all_of(selected_variables))
+
+
+# Check for missing values
+sum(is.na(h_data))
+
+# Impute missing values
+library(mice)
+set.seed(123)  # For reproducibility
+imputed_data <- mice(data_selected, m = 1, method = 'pmm', maxit = 5)
+data_cleaned <- complete(imputed_data)
+
+# Verify that there are no missing values
+sum(is.na(data_cleaned))
+
+
+```
+
+# Data preparation for modelling
+
+```{r}
+#  Split the Data
+
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Split data into training (70%) and testing (30%) sets
+trainIndex <- createDataPartition(data_cleaned$malpractice_premiums_per_inpatient_day, p = 0.8, list = FALSE)
+train_data <- data_cleaned[trainIndex, ]
+test_data <- data_cleaned[-trainIndex, ]
+dim(train_data)
+dim(test_data)
+```
+
+# Decision tree model
+
+```{r}
+# Load necessary library
+library(rpart)
+library(rpart.plot)
+
+# Train a Decision Tree
+decision_tree_model <- rpart(malpractice_premiums_per_inpatient_day ~ ., data = train_data, method = "anova")
+
+# Plot the tree
+rpart.plot(decision_tree_model)
+
+# Predict and evaluate
+predictions_tree <- predict(decision_tree_model, newdata = test_data)
+RMSE_tree <- sqrt(mean((test_data$malpractice_premiums_per_inpatient_day - predictions_tree)^2))
+print(paste("Decision Tree RMSE:", RMSE_tree))
+
+```
+
+```{r decision tree}
+# Load required libraries
+library(tidymodels)
+library(partykit)
+
+# Fit the decision tree model
+decision_tree_model <- decision_tree(mode = "regression") |>
+  set_engine("rpart") |>
+  fit(malpractice_premiums_per_inpatient_day ~ ., data = train_data)  # Fixed the formula syntax
+
+# Print the decision tree model
+print(decision_tree_model)
+
+# Plot the decision tree
+plot(as.party(decision_tree_model$fit))
+
+# Predict and evaluate
+predictions_tree <- predict(decision_tree_model, new_data = test_data)
+RMSE_tree <- sqrt(mean((test_data$malpractice_premiums_per_inpatient_day - predictions_tree$.pred)^2))  # Adjust prediction column
+
+# Print RMSE
+print(paste("Decision Tree RMSE:", RMSE_tree))
+
+
+
+```
+
+# Random Forest Model
+
+```{r}
+# Load necessary library
+library(randomForest)
+
+# Train a Random Forest
+set.seed(123)
+rf_model <- randomForest(malpractice_premiums_per_inpatient_day ~ ., data = train_data, importance = TRUE)
+
+# Plot feature importance
+varImpPlot(rf_model)
+
+# Predict and evaluate
+predictions_rf <- predict(rf_model, newdata = test_data)
+RMSE_rf <- sqrt(mean((test_data$malpractice_premiums_per_inpatient_day - predictions_rf)^2))
+print(paste("Random Forest RMSE:", RMSE_rf))
+importance(rf_model)
+
+```
+
+
+# Neural network model
+
+```{r}
+# Load necessary library
+library(neuralnet)
+
+# Normalize data
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
+data_normalized <- as.data.frame(lapply(data_cleaned, normalize))
+
+# Split normalized data
+train_data_norm <- data_normalized[trainIndex, ]
+test_data_norm <- data_normalized[-trainIndex, ]
+
+# Train Neural Network
+nn_model <- neuralnet(malpractice_premiums_per_inpatient_day ~ ., data = train_data_norm, hidden = c(5, 3), linear.output = TRUE)
+
+# Plot the neural network
+plot(nn_model)
+
+# Predict and evaluate
+predictions_nn <- compute(nn_model, test_data_norm[, -1])$net.result
+predictions_nn <- predictions_nn * (max(data_cleaned$malpractice_premiums_per_inpatient_day) - min(data_cleaned$malpractice_premiums_per_inpatient_day)) + min(data_cleaned$malpractice_premiums_per_inpatient_day)
+RMSE_nn <- sqrt(mean((test_data$malpractice_premiums_per_inpatient_day - predictions_nn)^2))
+print(paste("Neural Network RMSE:", RMSE_nn))
+
+```
+
+
+# Compare model
+
+```{r}
+print(paste("Decision Tree RMSE:", RMSE_tree))
+print(paste("Random Forest RMSE:", RMSE_rf))
+print(paste("Neural Network RMSE:", RMSE_nn))
+
+```
+
+
+#  Hyperparameter Tuning
+
+## Decision Tree
+
+
+```{r}
+# Load the caret package
+library(caret)
+
+# Set up cross-validation
+set.seed(123)
+control <- trainControl(method = "cv", number = 5)  # 5-fold cross-validation
+
+# Train a Decision Tree with hyperparameter tuning
+decision_tree_tuned <- train(
+  malpractice_premiums_per_inpatient_day ~ .,
+  data = train_data,
+  method = "rpart",
+  trControl = control,
+  tuneLength = 10  # Explore 10 different hyperparameter combinations
+)
+
+# Best model and parameters
+print(decision_tree_tuned$bestTune)
+
+# Plot the results
+plot(decision_tree_tuned)
+
+# Evaluate the model on the test data
+predictions_tree_tuned <- predict(decision_tree_tuned, newdata = test_data)
+RMSE_tree_tuned <- sqrt(mean((test_data$malpractice_premiums_per_inpatient_day - predictions_tree_tuned)^2))
+print(paste("Tuned Decision Tree RMSE:", RMSE_tree_tuned))
+
+```
+
+## Random Forest
+
+```{r}
+# Train a Random Forest with hyperparameter tuning
+set.seed(123)
+rf_tuned <- train(
+  malpractice_premiums_per_inpatient_day ~ .,
+  data = train_data,
+  method = "rf",
+  trControl = control,
+  tuneGrid = expand.grid(mtry = seq(2,  ncol(train_data) - 1, by = 2))  # Tune the mtry parameter
+)
+
+# Best model and parameters
+print(rf_tuned$bestTune)
+
+# Plot the results
+plot(rf_tuned)
+# Plot feature importance
+varImpPlot(rf_tuned$finalModel, main = "Feature Importance (Random Forest)")
+
+# Evaluate the model on the test data
+predictions_rf_tuned <- predict(rf_tuned, newdata = test_data)
+RMSE_rf_tuned <- sqrt(mean((test_data$malpractice_premiums_per_inpatient_day - predictions_rf_tuned)^2))
+print(paste("Tuned Random Forest RMSE:", RMSE_rf_tuned))
+
+```
+
+## Neural Network
+
+
+```{r}
+# Train a Neural Network with hyperparameter tuning
+set.seed(123)
+nn_tuned <- train(
+  malpractice_premiums_per_inpatient_day ~ .,
+  data = train_data_norm,
+  method = "nnet",
+  trControl = control,
+  tuneGrid = expand.grid(size = c(3, 5, 7), decay = c(0.1, 0.01, 0.001)),  # Tune hidden layers and regularization
+  linout = TRUE
+)
+
+# Best model and parameters
+print(nn_tuned$bestTune)
+
+# Plot the results
+plot(nn_tuned)
+
+# Evaluate the model on the test data
+predictions_nn_tuned <- predict(nn_tuned, newdata = test_data_norm)
+RMSE_nn_tuned <- sqrt(mean((test_data$malpractice_premiums_per_inpatient_day - predictions_nn_tuned)^2))
+print(paste("Tuned Neural Network RMSE:", RMSE_nn_tuned))
+
+```
+
+
+
+# Compare Models
+
+
+```{r}
+# Create a summary of RMSEs
+rmse_summary <- data.frame(
+  Model = c("Decision Tree", "Random Forest", "Neural Network"),
+  RMSE = c(RMSE_tree_tuned, RMSE_rf_tuned, RMSE_nn_tuned)
+)
+
+print(rmse_summary)
+
+```
+
+
+
+
+
